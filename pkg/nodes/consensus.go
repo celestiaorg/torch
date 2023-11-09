@@ -15,7 +15,7 @@ import (
 var (
 	consContainerSetupName = "consensus-setup"         // consContainerSetupName initContainer that we use to configure the nodes.
 	consContainerName      = "consensus"               // consContainerName container name which the pod runs.
-	namespace              = k8s.GetCurrentNamespace() // ns namespace of the node.
+	namespace              = k8s.GetCurrentNamespace() // namespace of the node.
 )
 
 // SetConsNodeDefault sets all the default values in case they are empty
@@ -34,26 +34,25 @@ func SetConsNodeDefault(peer config.Peer) config.Peer {
 
 // GenesisHash connects to the node specified in: config.MutualPeersConfig.ConsensusNode
 // makes a request to the API and gets the info about the genesis and return it
-func GenesisHash(pods config.MutualPeersConfig) (string, string) {
-	consensusNode := pods.MutualPeers[0].ConsensusNode
+func GenesisHash(consensusNode string) (string, string, error) {
 	url := fmt.Sprintf("http://%s:26657/block?height=1", consensusNode)
 
 	response, err := http.Get(url)
 	if err != nil {
-		log.Error("Error making GET request:", err)
-		return "", ""
+		log.Error("Error making the request to the node [", consensusNode, "] - ", err)
+		return "", "", err
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		log.Error("Non-OK response:", response.Status)
-		return "", ""
+		return "", "", err
 	}
 
 	bodyBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Error("Error reading response body:", err)
-		return "", ""
+		return "", "", err
 	}
 
 	bodyString := string(bodyBytes)
@@ -64,26 +63,26 @@ func GenesisHash(pods config.MutualPeersConfig) (string, string) {
 	err = json.Unmarshal([]byte(bodyString), &jsonResponse)
 	if err != nil {
 		log.Error("Error parsing JSON:", err)
-		return "", ""
+		return "", "", err
 	}
 
 	// Access and print the .block_id.hash field
 	blockIDHash, ok := jsonResponse["result"].(map[string]interface{})["block_id"].(map[string]interface{})["hash"].(string)
 	if !ok {
 		log.Error("Unable to access .block_id.hash")
-		return "", ""
+		return "", "", err
 	}
 
 	// Access and print the .block.header.time field
 	blockTime, ok := jsonResponse["result"].(map[string]interface{})["block"].(map[string]interface{})["header"].(map[string]interface{})["time"].(string)
 	if !ok {
 		log.Error("Unable to access .block.header.time")
-		return "", ""
+		return "", "", err
 	}
 
 	log.Info("Block ID Hash: ", blockIDHash)
 	log.Info("Block Time: ", blockTime)
 	log.Info("Full output: ", bodyString)
 
-	return blockIDHash, blockTime
+	return blockIDHash, blockTime, nil
 }

@@ -77,6 +77,14 @@ func WithMetricsBlockHeight(blockHeight, earliestBlockTime, serviceName, namespa
 		log.Fatalf(err.Error())
 		return err
 	}
+
+	// Calculate the days that the chain is live.
+	daysRunning, err := calculateDaysDifference(earliestBlockTime)
+	if err != nil {
+		log.Error("ERROR: ", err)
+		return err
+	}
+
 	callback := func(ctx context.Context, observer metric.Observer) error {
 		// Define the callback function that will be called periodically to observe metrics.
 		// Create labels with attributes for each block_height_1.
@@ -84,7 +92,7 @@ func WithMetricsBlockHeight(blockHeight, earliestBlockTime, serviceName, namespa
 			attribute.String("service_name", serviceName),
 			attribute.String("block_height_1", blockHeight),
 			attribute.String("earliest_block_time", earliestBlockTime),
-			attribute.Int("days_running", CalculateDaysDifference(earliestBlockTime)),
+			attribute.Int("days_running", daysRunning),
 			attribute.String("namespace", namespace),
 		)
 		// Observe the float64 value for the current block_height_1 with the associated labels.
@@ -98,18 +106,18 @@ func WithMetricsBlockHeight(blockHeight, earliestBlockTime, serviceName, namespa
 	return err
 }
 
-// CalculateDaysDifference based on the date received, returns the number of days since this day.
-func CalculateDaysDifference(inputTimeString string) int {
+// calculateDaysDifference based on the date received, returns the number of days since this day.
+func calculateDaysDifference(inputTimeString string) (int, error) {
 	layout := "2006-01-02T15:04:05.999999999Z"
 	inputTime, err := time.Parse(layout, inputTimeString)
 	if err != nil {
 		log.Error("Error parsing time: [", inputTimeString, "]", err)
-		return -1
+		return -1, err
 	}
 
 	currentTime := time.Now()
 	timeDifference := currentTime.Sub(inputTime)
 	daysDifference := int(timeDifference.Hours() / 24)
 
-	return daysDifference
+	return daysDifference, nil
 }

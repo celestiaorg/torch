@@ -19,6 +19,10 @@ import (
 	"github.com/celestiaorg/torch/pkg/nodes"
 )
 
+const (
+	retryInterval = 10 * time.Second // retryInterval Retry interval in seconds to generate the consensus metric.
+)
+
 // GetHttpPort GetPort retrieves the namespace where the service will be deployed
 func GetHttpPort() string {
 	port := os.Getenv("HTTP_PORT")
@@ -57,13 +61,6 @@ func Run(cfg config.MutualPeersConfig) {
 		return
 	}
 
-	// generate the metric from the Genesis Hash data
-	notOk := GenerateHashMetrics(cfg, err)
-	if notOk {
-		log.Error("Error registering metric block_height_1")
-		return
-	}
-
 	// Create the server
 	server := &http.Server{
 		Addr:    ":" + httpPort,
@@ -80,6 +77,9 @@ func Run(cfg config.MutualPeersConfig) {
 	}()
 	log.Info("Server Started...")
 	log.Info("Listening on port: " + httpPort)
+
+	// check if Torch has to generate the metric or not.
+	BackgroundGenerateHashMetric(cfg)
 
 	// Initialize the goroutine to check the nodes in the queue.
 	log.Info("Initializing queues to process the nodes...")
@@ -127,23 +127,53 @@ func Run(cfg config.MutualPeersConfig) {
 	log.Info("Server Exited Properly")
 }
 
-func GenerateHashMetrics(cfg config.MutualPeersConfig, err error) bool {
-	// Get the genesisHash
-	// check if the config has the consensusNode field defined
+// BackgroundGenerateHashMetric check if we have defined the consensus in the config, if so, it creates a goroutine
+// to generate the metric
+func BackgroundGenerateHashMetric(cfg config.MutualPeersConfig) {
+	// Check if the config has the consensusNode field defined to generate the metric from the Genesis Hash data.
 	if cfg.MutualPeers[0].ConsensusNode != "" {
-		blockHash, earliestBlockTime := nodes.GenesisHash(cfg)
-		err = metrics.WithMetricsBlockHeight(
-			blockHash,
-			earliestBlockTime,
-			cfg.MutualPeers[0].ConsensusNode,
-			os.Getenv("POD_NAMESPACE"),
-		)
-		if err != nil {
-			log.Errorf("Error registering metric block_height_1: %v", err)
-			return true
-		}
+		// Initialise the goroutine to generate the metric in the background, only if we specify the node in the config.
+		go func() {
+			log.Info("Consensus node defined to get the first block")
+			for {
+				err := GenerateHashMetrics(cfg)
+				// check if err is nil, if so, that means that Torch was able to generate the metric.
+				if err == nil {
+					log.Info("Metric generated for the first block...")
+					// The metric was successfully generated, stop the retries.
+					break
+				}
+
+				// Wait for the retry interval before the next execution
+				time.Sleep(retryInterval)
+			}
+		}()
 	}
-	return false
+}
+
+// GenerateHashMetrics generates the metric by getting the first block and calculating the days.
+func GenerateHashMetrics(cfg config.MutualPeersConfig) error {
+	log.Info("Generating the metric for the first block generated...")
+
+	// Get the genesisHash
+	blockHash, earliestBlockTime, err := nodes.GenesisHash(cfg.MutualPeers[0].ConsensusNode)
+	if err != nil {
+		return err
+	}
+
+	// check if earliestBlockTime is not empty, otherwise torch skips this process for now.
+	err = metrics.WithMetricsBlockHeight(
+		blockHash,
+		earliestBlockTime,
+		cfg.MutualPeers[0].ConsensusNode,
+		os.Getenv("POD_NAMESPACE"),
+	)
+	if err != nil {
+		log.Error("Error registering metric block_height_1: ", err)
+		return err
+	}
+
+	return nil
 }
 
 // RegisterMetrics generates and registers the metrics for all nodes in case they already exist in the DB.
