@@ -15,6 +15,7 @@ type MutualPeer struct {
 // Peer represents a peer structure.
 type Peer struct {
 	NodeName           string   `yaml:"nodeName"`                     // NodeName name of the sts/deployment
+	ServiceName        string   `yaml:"serviceName,omitempty"`        // ServiceName name of the service
 	NodeType           string   `yaml:"nodeType"`                     // NodeType specify the type of node
 	Namespace          string   `yaml:"namespace,omitempty"`          // Namespace of the node
 	ContainerName      string   `yaml:"containerName,omitempty"`      // ContainerName name of the main container

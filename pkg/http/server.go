@@ -204,19 +204,25 @@ func watchMetricsWithRetry(cfg config.MutualPeersConfig, ctx context.Context) er
 		select {
 		case <-ctx.Done():
 			// Context canceled, stop the process
-			log.Info("Context canceled, stopping WatchHashMetric.")
+			log.Info("Context canceled, stopping metrics watch process.")
 			return ctx.Err()
 		default:
-			err := GenerateHashMetrics(cfg)
-			// Check if err is nil, if so, Torch was able to generate the metric.
-			if err == nil {
-				log.Info("Metric generated for the first block, let's stop the process successfully...")
-				// The metric was successfully generated, stop the retries.
+			hashMetricsErr := GenerateHashMetrics(cfg)
+			consensusMetricsErr := ConsNodesIDs(cfg)
+
+			// Check if both metrics generation are successful
+			if hashMetricsErr == nil && consensusMetricsErr == nil {
+				log.Info("Metrics generated successfully, stopping the process...")
 				return nil
 			}
 
-			// Log the error
-			log.Error("Error generating hash metrics: ", err)
+			// Log errors if they occur
+			if hashMetricsErr != nil {
+				log.Error("Error generating hash metrics: ", hashMetricsErr)
+			}
+			if consensusMetricsErr != nil {
+				log.Error("Error generating consensus node ID metrics: ", consensusMetricsErr)
+			}
 
 			// Wait for the retry interval before the next execution using a timer
 			if err := waitForRetry(ctx); err != nil {
@@ -262,6 +268,35 @@ func GenerateHashMetrics(cfg config.MutualPeersConfig) error {
 	if err != nil {
 		log.Error("Error registering metric block_height_1: ", err)
 		return err
+	}
+
+	return nil
+}
+
+// ConsNodesIDs generates the metric with the consensus nodes ids.
+func ConsNodesIDs(cfg config.MutualPeersConfig) error {
+	log.Info("Generating the metric for the consensus nodes ids...")
+
+	for _, mutualPeer := range cfg.MutualPeers {
+		for _, peer := range mutualPeer.Peers {
+			if peer.NodeType == "consensus" {
+				consNodeId, err := nodes.ConsensusNodesIDs(peer.ServiceName)
+				if err != nil {
+					log.Error("Error getting consensus node ID for service [", peer.ServiceName, "]: ", err)
+					return err
+				}
+
+				err = metrics.RegisterConsensusNodeMetric(
+					consNodeId,
+					peer.ServiceName,q
+					os.Getenv("POD_NAMESPACE"),
+				)
+				if err != nil {
+					log.Error("Error registering metric for service [", peer.ServiceName, "]: ", err)
+					return err
+				}
+			}
+		}
 	}
 
 	return nil

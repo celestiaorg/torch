@@ -164,3 +164,42 @@ func WithMetricsLoadBalancer(loadBalancers []LoadBalancer) error {
 	_, err = meter.RegisterCallback(callback, loadBalancersGauge)
 	return err
 }
+
+// ConsensusNodeMetric represents the information for consensus node metrics.
+type ConsensusNodeMetric struct {
+	NodeName  string // NodeName is the name of the node.
+	NodeID    string // NodeID is the ID of the node.
+	Namespace string // Namespace of the node.
+}
+
+// RegisterConsensusNodeMetric creates and registers metrics for consensus nodes.
+func RegisterConsensusNodeMetric(nodeID, nodeName, namespace string) error {
+	log.Info("Registering metric for consensus node: ", nodeName)
+
+	// Create an ObservableGauge for consensus node metrics.
+	consensusNodeGauge, err := meter.Float64ObservableGauge(
+		"consensus_node_ids_metric",
+		metric.WithDescription("Metric for Consensus Node IDs"),
+	)
+	if err != nil {
+		log.Fatalf("Error creating metric: ", err)
+		return err
+	}
+
+	callback := func(ctx context.Context, observer metric.Observer) error {
+		// Define the callback function that will be called periodically to observe metrics.
+		labels := metric.WithAttributes(
+			attribute.String("node_name", nodeName),
+			attribute.String("node_id", nodeID),
+			attribute.String("namespace", namespace),
+		)
+		// Observe the value for current consensus node metrics with associated labels.
+		observer.ObserveFloat64(consensusNodeGauge, 1, labels)
+
+		return nil
+	}
+
+	// Register the callback with the meter and the ObservableGauge.
+	_, err = meter.RegisterCallback(callback, consensusNodeGauge)
+	return err
+}

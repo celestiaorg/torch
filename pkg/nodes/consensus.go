@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -32,57 +33,77 @@ func SetConsNodeDefault(peer config.Peer) config.Peer {
 	return peer
 }
 
-// GenesisHash connects to the node specified in: config.MutualPeersConfig.ConsensusNode
-// makes a request to the API and gets the info about the genesis and return it
+// GenesisHash connects to the specified consensus node, makes a request to the API,
+// and retrieves information about the genesis block including its hash and time.
 func GenesisHash(consensusNode string) (string, string, error) {
 	url := fmt.Sprintf("http://%s:26657/block?height=1", consensusNode)
+	jsonResponse, err := makeAPIRequest(url)
+	if err != nil {
+		return "", "", err
+	}
 
+	blockIDHash, ok := jsonResponse["result"].(map[string]interface{})["block_id"].(map[string]interface{})["hash"].(string)
+	if !ok {
+		log.Error("Unable to access .block_id.hash")
+		return "", "", errors.New("error accessing block ID hash")
+	}
+
+	blockTime, ok := jsonResponse["result"].(map[string]interface{})["block"].(map[string]interface{})["header"].(map[string]interface{})["time"].(string)
+	if !ok {
+		log.Error("Unable to access .block.header.time")
+		return "", "", errors.New("error accessing block time")
+	}
+
+	return blockIDHash, blockTime, nil
+}
+
+// ConsensusNodesIDs connects to the specified consensus node, makes a request to the API,
+// and retrieves the node ID from the status response.
+func ConsensusNodesIDs(consensusNode string) (string, error) {
+	url := fmt.Sprintf("http://%s:26657/status?", consensusNode)
+	jsonResponse, err := makeAPIRequest(url)
+	if err != nil {
+		return "", err
+	}
+
+	nodeID, ok := jsonResponse["result"].(map[string]interface{})["node_info"].(map[string]interface{})["id"].(string)
+	if !ok {
+		log.Error("Unable to access .result.node_info.id")
+		return "", errors.New("error accessing node ID")
+	}
+
+	log.Info("Consensus Node [", consensusNode, "] ID: [", nodeID, "]")
+
+	return nodeID, nil
+}
+
+// makeAPIRequest handles the common task of making an HTTP request to a given URL
+// and parsing the JSON response. It returns a map representing the JSON response or an error.
+func makeAPIRequest(url string) (map[string]interface{}, error) {
 	response, err := http.Get(url)
 	if err != nil {
-		log.Error("Error making the request to the node [", consensusNode, "] - ", err)
-		return "", "", err
+		log.Error("Error making the request: ", err)
+		return nil, err
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		log.Error("Non-OK response:", response.Status)
-		return "", "", err
+		return nil, err
 	}
 
 	bodyBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Error("Error reading response body:", err)
-		return "", "", err
+		return nil, err
 	}
 
-	bodyString := string(bodyBytes)
-	log.Info("Response Body: ", bodyString)
-
-	// Parse the JSON response into a generic map
 	var jsonResponse map[string]interface{}
-	err = json.Unmarshal([]byte(bodyString), &jsonResponse)
+	err = json.Unmarshal(bodyBytes, &jsonResponse)
 	if err != nil {
 		log.Error("Error parsing JSON:", err)
-		return "", "", err
+		return nil, err
 	}
 
-	// Access and print the .block_id.hash field
-	blockIDHash, ok := jsonResponse["result"].(map[string]interface{})["block_id"].(map[string]interface{})["hash"].(string)
-	if !ok {
-		log.Error("Unable to access .block_id.hash")
-		return "", "", err
-	}
-
-	// Access and print the .block.header.time field
-	blockTime, ok := jsonResponse["result"].(map[string]interface{})["block"].(map[string]interface{})["header"].(map[string]interface{})["time"].(string)
-	if !ok {
-		log.Error("Unable to access .block.header.time")
-		return "", "", err
-	}
-
-	log.Info("Block ID Hash: ", blockIDHash)
-	log.Info("Block Time: ", blockTime)
-	log.Info("Full output: ", bodyString)
-
-	return blockIDHash, blockTime, nil
+	return jsonResponse, nil
 }
