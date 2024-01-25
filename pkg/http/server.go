@@ -288,7 +288,7 @@ func ConsNodesIDs(cfg config.MutualPeersConfig) error {
 
 				err = metrics.RegisterConsensusNodeMetric(
 					consNodeId,
-					peer.ServiceName,q
+					peer.ServiceName,
 					os.Getenv("POD_NAMESPACE"),
 				)
 				if err != nil {
