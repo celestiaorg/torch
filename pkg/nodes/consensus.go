@@ -17,6 +17,12 @@ var (
 	consContainerSetupName = "consensus-setup"         // consContainerSetupName initContainer that we use to configure the nodes.
 	consContainerName      = "consensus"               // consContainerName container name which the pod runs.
 	namespace              = k8s.GetCurrentNamespace() // namespace of the node.
+	KeyResult              = "result"                  // KeyResult result field in the JSON response
+	KeyBlockID             = "block_id"                // KeyBlockID block_id field within the 'result' field
+	KeyHash                = "hash"                    // KeyHash hash field within the 'block_id' field
+	KeyNodeInfo            = "node_info"               // KeyNodeInfo node_info field within the 'result' field
+	KeyID                  = "id"                      // KeyID id field within the 'node_info' field
+
 )
 
 // SetConsNodeDefault sets all the default values in case they are empty
@@ -42,7 +48,7 @@ func GenesisHash(consensusNode string) (string, string, error) {
 		return "", "", err
 	}
 
-	blockIDHash, ok := jsonResponse["result"].(map[string]interface{})["block_id"].(map[string]interface{})["hash"].(string)
+	blockIDHash, ok := jsonResponse[KeyResult].(map[string]interface{})[KeyBlockID].(map[string]interface{})[KeyHash].(string)
 	if !ok {
 		log.Error("Unable to access .block_id.hash")
 		return "", "", errors.New("error accessing block ID hash")
@@ -66,7 +72,7 @@ func ConsensusNodesIDs(consensusNode string) (string, error) {
 		return "", err
 	}
 
-	nodeID, ok := jsonResponse["result"].(map[string]interface{})["node_info"].(map[string]interface{})["id"].(string)
+	nodeID, ok := jsonResponse[KeyResult].(map[string]interface{})[KeyNodeInfo].(map[string]interface{})[KeyID].(string)
 	if !ok {
 		log.Error("Unable to access .result.node_info.id")
 		return "", errors.New("error accessing node ID")

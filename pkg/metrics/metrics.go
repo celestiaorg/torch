@@ -162,7 +162,12 @@ func WithMetricsLoadBalancer(loadBalancers []LoadBalancer) error {
 
 	// Register the callback with the meter and the Float64ObservableGauge.
 	_, err = meter.RegisterCallback(callback, loadBalancersGauge)
-	return err
+	if err != nil {
+		log.Error("Error registering callback: ", err)
+		return err
+	}
+
+	return nil
 }
 
 // ConsensusNodeMetric represents the information for consensus node metrics.
@@ -182,7 +187,7 @@ func RegisterConsensusNodeMetric(nodeID, nodeName, namespace string) error {
 		metric.WithDescription("Metric for Consensus Node IDs"),
 	)
 	if err != nil {
-		log.Fatalf("Error creating metric: ", err)
+		log.Error("Error creating metric: ", err)
 		return err
 	}
 
@@ -201,5 +206,10 @@ func RegisterConsensusNodeMetric(nodeID, nodeName, namespace string) error {
 
 	// Register the callback with the meter and the ObservableGauge.
 	_, err = meter.RegisterCallback(callback, consensusNodeGauge)
-	return err
+	if err != nil {
+		log.Error("Error registering callback: ", err)
+		return err
+	}
+
+	return nil
 }

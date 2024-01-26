@@ -23,6 +23,7 @@ import (
 const (
 	retryInterval        = 10 * time.Second // retryInterval Retry interval in seconds to generate the consensus metric.
 	hashMetricGenTimeout = 5 * time.Minute  // hashMetricGenTimeout specify the max time to retry to generate the metric.
+	consType             = "consensus"      // consType type of Consensus node.
 )
 
 // GetHttpPort GetPort retrieves the namespace where the service will be deployed
@@ -273,29 +274,53 @@ func GenerateHashMetrics(cfg config.MutualPeersConfig) error {
 	return nil
 }
 
+// handleConsensusPeer processes an individual consensus peer by registering its node ID and metrics.
+func handleConsensusPeer(peer config.Peer) error {
+	if peer.NodeType != consType {
+		return nil
+	}
+
+	consNodeId, err := nodes.ConsensusNodesIDs(peer.ServiceName)
+	if err != nil {
+		log.Error("Error getting consensus node ID for service [", peer.ServiceName, "]: ", err)
+		return err
+	}
+
+	err = metrics.RegisterConsensusNodeMetric(
+		consNodeId,
+		peer.ServiceName,
+		os.Getenv("POD_NAMESPACE"),
+	)
+	if err != nil {
+		log.Error("Error registering metric for service [", peer.ServiceName, "]: ", err)
+		return err
+	}
+
+	return nil
+}
+
+// GetAllPeers collects and returns all the Peers from each MutualPeer in the configuration.
+func GetAllPeers(cfg config.MutualPeersConfig) []config.Peer {
+	var allPeers []config.Peer
+
+	log.Debug("Processing cfg.MutualPeers: ", cfg.MutualPeers)
+	for _, mutualPeer := range cfg.MutualPeers {
+		log.Debug("mutualPeer: ", mutualPeer)
+		allPeers = append(allPeers, mutualPeer.Peers...)
+	}
+
+	return allPeers
+}
+
 // ConsNodesIDs generates the metric with the consensus nodes ids.
 func ConsNodesIDs(cfg config.MutualPeersConfig) error {
 	log.Info("Generating the metric for the consensus nodes ids...")
 
-	for _, mutualPeer := range cfg.MutualPeers {
-		for _, peer := range mutualPeer.Peers {
-			if peer.NodeType == "consensus" {
-				consNodeId, err := nodes.ConsensusNodesIDs(peer.ServiceName)
-				if err != nil {
-					log.Error("Error getting consensus node ID for service [", peer.ServiceName, "]: ", err)
-					return err
-				}
-
-				err = metrics.RegisterConsensusNodeMetric(
-					consNodeId,
-					peer.ServiceName,
-					os.Getenv("POD_NAMESPACE"),
-				)
-				if err != nil {
-					log.Error("Error registering metric for service [", peer.ServiceName, "]: ", err)
-					return err
-				}
-			}
+	allPeers := GetAllPeers(cfg)
+	for _, peer := range allPeers {
+		log.Debug("Processing peer ", peer)
+		if err := handleConsensusPeer(peer); err != nil {
+			return err
 		}
 	}
 
