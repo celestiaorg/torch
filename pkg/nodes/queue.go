@@ -21,6 +21,7 @@ var (
 // ProcessTaskQueue processes the pending tasks in the queue the time specified in the const TickerTime.
 func ProcessTaskQueue() {
 	ticker := time.NewTicker(TickerTime)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -51,9 +52,6 @@ func processQueue() {
 			if err != nil {
 				log.Error("Error checking the nodes: CheckNodesInDBOrCreateThem - ", err)
 			}
-
-		default:
-			return
 		}
 	}
 }
