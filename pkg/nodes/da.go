@@ -39,6 +39,9 @@ func SetDaNodeDefault(peer config.Peer) config.Peer {
 	if peer.Namespace == "" {
 		peer.Namespace = ns
 	}
+	peer.ConnectsAsEnvVar = false
+	peer.ConnectsTo = nil
+	peer.DnsConnections = nil
 	return peer
 }
 
@@ -152,6 +155,7 @@ func SetIdPrefix(peer config.Peer, c string, i int) (string, error) {
 	// check if we are using DNS or IP
 	if len(peer.DnsConnections) > 0 {
 		c = "/dns/" + peer.DnsConnections[i] + "/tcp/2121/p2p/" + c
+		c = "," + "/dns/" + peer.DnsConnections[i] + "/udp/2121/quic-v1/p2p/" + c
 	} else {
 		comm := k8s.GetNodeIP()
 		output, err := k8s.RunRemoteCommand(

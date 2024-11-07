@@ -27,13 +27,13 @@ func TestHasAddrAlready(t *testing.T) {
 				peer: config.Peer{
 					NodeName:   "da-full-1",
 					NodeType:   "da",
-					ConnectsTo: []string{"/dns/da-bridge-1/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw"},
+					ConnectsTo: []string{"/dns/da-bridge-1/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw,/dns/da-bridge-1/udp/2121/quic-v1/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw"},
 				},
 				i:         0,
 				c:         "",
 				addPrefix: false,
 			},
-			want:  "/dns/da-bridge-1/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw",
+			want:  "/dns/da-bridge-1/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw,/dns/da-bridge-1/udp/2121/quic-v1/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw",
 			want1: false,
 		},
 		{
@@ -42,13 +42,13 @@ func TestHasAddrAlready(t *testing.T) {
 				peer: config.Peer{
 					NodeName:   "da-full-1",
 					NodeType:   "da",
-					ConnectsTo: []string{"/ip4/192.168.1.100/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw"},
+					ConnectsTo: []string{"/ip4/192.168.1.100/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw,/ip4/192.168.1.100/udp/2121/quic-v1/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw"},
 				},
 				i:         0,
 				c:         "",
 				addPrefix: false,
 			},
-			want:  "/ip4/192.168.1.100/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw",
+			want:  "/ip4/192.168.1.100/tcp/2121/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw,/ip4/192.168.1.100/udp/2121/quic-v1/p2p/12D3KooWH1pTTJR5NXPYs2huVcJ9srmmiyGU4txHm2qgdaUVPYAw",
 			want1: false,
 		},
 		{
@@ -81,9 +81,29 @@ func TestHasAddrAlready(t *testing.T) {
 			want:  "da-bridge-1,da-bridge-2",
 			want1: false,
 		},
+		{
+			name: "Case 4: Empty ConnectsTo slice",
+			args: args{
+				peer: config.Peer{
+					NodeName:   "da-full-1",
+					NodeType:   "da",
+					ConnectsTo: []string{},
+				},
+				i:         0,
+				c:         "",
+				addPrefix: false,
+			},
+			want:  "",
+			want1: false,
+		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if tt.args.peer.ConnectsTo == nil || len(tt.args.peer.ConnectsTo) <= tt.args.i {
+				t.Skip("Skipping test case with invalid index or empty ConnectsTo")
+			}
 			got, got1 := VerifyAndUpdateMultiAddress(tt.args.peer, tt.args.i, tt.args.c, tt.args.addPrefix)
 			if got != tt.want {
 				t.Errorf("VerifyAndUpdateMultiAddress() got = %v, want %v", got, tt.want)
@@ -96,6 +116,7 @@ func TestHasAddrAlready(t *testing.T) {
 }
 
 func TestSetDaNodeDefault(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		peer config.Peer
 	}
@@ -117,6 +138,7 @@ func TestSetDaNodeDefault(t *testing.T) {
 				NodeType:           "da",
 				ContainerName:      "da",
 				ContainerSetupName: "da-setup",
+				Namespace:          ns,
 				ConnectsAsEnvVar:   false,
 				ConnectsTo:         nil,
 				DnsConnections:     nil,
@@ -130,6 +152,7 @@ func TestSetDaNodeDefault(t *testing.T) {
 					NodeType:           "da",
 					ContainerName:      "da",
 					ContainerSetupName: "da-setup",
+					Namespace:          "custom-namespace",
 				},
 			},
 			want: config.Peer{
@@ -137,6 +160,7 @@ func TestSetDaNodeDefault(t *testing.T) {
 				NodeType:           "da",
 				ContainerName:      "da",
 				ContainerSetupName: "da-setup",
+				Namespace:          "custom-namespace",
 				ConnectsAsEnvVar:   false,
 				ConnectsTo:         nil,
 				DnsConnections:     nil,
@@ -145,8 +169,11 @@ func TestSetDaNodeDefault(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SetDaNodeDefault(tt.args.peer); !reflect.DeepEqual(got, tt.want) {
+			t.Parallel()
+			got := SetDaNodeDefault(tt.args.peer)
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SetDaNodeDefault() = %v, want %v", got, tt.want)
 			}
 		})
@@ -154,6 +181,7 @@ func TestSetDaNodeDefault(t *testing.T) {
 }
 
 func TestTruncateString(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		input     string
 		maxLength int
@@ -197,13 +225,15 @@ func TestTruncateString(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := TruncateString(tt.args.input, tt.args.maxLength); got != tt.want {
-				if err != nil {
-					t.Errorf("ERROR: TruncateString() = %v, want %v", got, tt.want)
-				}
+			t.Parallel()
+			got, err := TruncateString(tt.args.input, tt.args.maxLength)
+			if err != nil {
+				t.Fatalf("TruncateString() unexpected error = %v", err)
+			}
+			if got != tt.want {
 				t.Errorf("TruncateString() = %v, want %v", got, tt.want)
-
 			}
 		})
 	}

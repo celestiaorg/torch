@@ -29,6 +29,7 @@ func TestSetConsNodeDefault(t *testing.T) {
 				NodeType:           "consensus",
 				ContainerName:      "consensus",
 				ContainerSetupName: "consensus-setup",
+				Namespace:          "default",
 				ConnectsAsEnvVar:   false,
 				ConnectsTo:         nil,
 				DnsConnections:     nil,
@@ -49,6 +50,7 @@ func TestSetConsNodeDefault(t *testing.T) {
 				NodeType:           "consensus",
 				ContainerName:      "consensus",
 				ContainerSetupName: "consensus-setup",
+				Namespace:          "default",
 				ConnectsAsEnvVar:   false,
 				ConnectsTo:         nil,
 				DnsConnections:     nil,
@@ -58,7 +60,7 @@ func TestSetConsNodeDefault(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := SetConsNodeDefault(tt.args.peer); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SetConsNodeDefault() = %v, want %v", got, tt.want)
+				t.Errorf("SetConsNodeDefault() = \n%v, \nwant \n%v", got, tt.want)
 			}
 		})
 	}

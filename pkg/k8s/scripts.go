@@ -10,7 +10,7 @@ var (
 	trustedPeerFileDA        = "/tmp/CONSENSUS_NODE_SERVICE"
 	nodeIpFile               = "/tmp/NODE_IP"
 	cmd                      = `$(ifconfig | grep -oE 'inet addr:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' | grep -v '127.0.0.1' | awk '{print substr($2, 6)}')`
-	trustedPeerPrefix        = "/ip4/" + cmd + "/tcp/2121/p2p/"
+	trustedPeerPrefix        = "/ip4/" + cmd + "/tcp/2121/p2p/,/ip4/" + cmd + "/udp/2121/quic-v1/p2p/"
 )
 
 // CreateFileWithEnvVar creates the file in the FS with the node to connect.

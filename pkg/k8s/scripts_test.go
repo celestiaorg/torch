@@ -10,6 +10,8 @@ const case1 = "Case 1: Successfully script generated."
 
 // TestCreateFileWithEnvVar validates the node types and their path
 func TestCreateFileWithEnvVar(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		nodeToFile string
 		nodeType   string
@@ -42,9 +44,12 @@ echo -n "/tmp/CONSENSUS_NODE_SERVICE" > "/tmp/CONSENSUS_NODE_SERVICE"`},
 	}
 
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CreateFileWithEnvVar(tt.args.nodeToFile, tt.args.nodeType); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateFileWithEnvVar() = got: \n%v, \nwant \n%v", got, tt.want)
+			t.Parallel()
+			got := CreateFileWithEnvVar(tt.args.nodeToFile, tt.args.nodeType)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateFileWithEnvVar() = \ngot:  %#v\nwant: %#v", got, tt.want)
 			}
 		})
 	}
@@ -52,6 +57,8 @@ echo -n "/tmp/CONSENSUS_NODE_SERVICE" > "/tmp/CONSENSUS_NODE_SERVICE"`},
 
 // TestCreateTrustedPeerCommand checks the script to generate the multi address.
 func TestCreateTrustedPeerCommand(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		want []string
@@ -79,9 +86,12 @@ cat "/tmp/TP-ADDR"
 		},
 	}
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CreateTrustedPeerCommand(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateTrustedPeerCommand() = %v, want %v", got, tt.want)
+			t.Parallel()
+			got := CreateTrustedPeerCommand()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateTrustedPeerCommand() = \ngot:  %#v\nwant: %#v", got, tt.want)
 			}
 		})
 	}
@@ -89,6 +99,8 @@ cat "/tmp/TP-ADDR"
 
 // TestGetNodeIP gets the IP of the node and add it to a file
 func TestGetNodeIP(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		want []string
@@ -97,14 +109,17 @@ func TestGetNodeIP(t *testing.T) {
 			name: case1,
 			want: []string{"sh", "-c", `
 #!/bin/sh
-echo -n "/ip4/$(ifconfig | grep -oE 'inet addr:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' | grep -v '127.0.0.1' | awk '{print substr($2, 6)}')/tcp/2121/p2p/" > "/tmp/NODE_IP"
+echo -n "/ip4/$(ifconfig | grep -oE 'inet addr:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' | grep -v '127.0.0.1' | awk '{print substr($2, 6)}')/tcp/2121/p2p/,/ip4/$(ifconfig | grep -oE 'inet addr:([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)' | grep -v '127.0.0.1' | awk '{print substr($2, 6)}')/udp/2121/quic-v1/p2p/" >> "/tmp/NODE_IP"
 cat "/tmp/NODE_IP"`},
 		},
 	}
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetNodeIP(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetNodeIP() = got: \n%v, \nwant: \n%v", got, tt.want)
+			t.Parallel()
+			got := GetNodeIP()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetNodeIP() = \ngot:  %#v\nwant: %#v", got, tt.want)
 			}
 		})
 	}
@@ -112,6 +127,8 @@ cat "/tmp/NODE_IP"`},
 
 // TestWriteToFile writes content to a file
 func TestWriteToFile(t *testing.T) {
+	t.Parallel()
+
 	type args struct {
 		content string
 		file    string
@@ -145,9 +162,12 @@ cat "/tmp/file_with_content"`},
 		},
 	}
 	for _, tt := range tests {
+		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			if got := WriteToFile(tt.args.content, tt.args.file); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("WriteToFile() = %v, want %v", got, tt.want)
+			t.Parallel()
+			got := WriteToFile(tt.args.content, tt.args.file)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("WriteToFile() = \ngot:  %#v\nwant: %#v", got, tt.want)
 			}
 		})
 	}
